@@ -1,4 +1,5 @@
-const app = require("../nodejs-homework-API-REST/src/app");
+require("dotenv").config();
+const app = require("./app");
 const connectDB = require("./db");
 
 connectDB();
