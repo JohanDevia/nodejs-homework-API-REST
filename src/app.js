@@ -1,18 +1,24 @@
 const express = require("express");
-const morgan = require("morgan");
-const cors = require("cors");
-const contactsRoutes = require("./routes/contactsRoutes");
-const authRoutes = require("./routes/authRoutes");
+const mongoose = require("mongoose");
+const userRoutes = require("./routes/users");
+require("dotenv").config();
 
 const app = express();
 
-// Middlewares
-app.use(morgan("dev"));
-app.use(cors());
 app.use(express.json());
 
-// Rutas
-app.use("/api/contacts", contactsRoutes);
-app.use("/api/users", authRoutes);
+mongoose
+  .connect(process.env.MONGODB_URL, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => {
+    console.log("MongoDB connected");
+  })
+  .catch((err) => {
+    console.error("MongoDB connection error:", err);
+  });
+
+app.use("/users", userRoutes);
 
 module.exports = app;
