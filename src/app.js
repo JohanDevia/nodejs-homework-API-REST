@@ -1,6 +1,8 @@
 const express = require("express");
 const mongoose = require("mongoose");
-const userRoutes = require("./routes/users");
+const userRoutes = require("./routes/authRoutes");
+const contactRoutes = require("./routes/contactsRoutes");
+const protectedRoutes = require("./routes/protectedRoutes");
 require("dotenv").config();
 
 const app = express();
@@ -20,5 +22,7 @@ mongoose
   });
 
 app.use("/users", userRoutes);
+app.use("/contacts", contactRoutes);
+app.use("/protected", protectedRoutes);
 
 module.exports = app;

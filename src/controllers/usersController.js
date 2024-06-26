@@ -1,35 +1,109 @@
-const User = require("../models/User"); // Asegúrate de importar tu modelo de usuario correctamente
+const User = require("../models/usersModel");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
-// Controlador para registrar un nuevo usuario
-const signup = async (req, res) => {
-  const { name, email, password } = req.body;
+exports.signup = async (req, res) => {
+  const { email, password } = req.body;
 
   try {
-    // Intentar crear un nuevo usuario en la base de datos
-    const newUser = await User.create({ name, email, password });
+    // Verifica si el usuario ya existe
+    let user = await User.findOne({ email });
+    if (user) {
+      return res.status(409).json({ message: "Email in use" });
+    }
 
-    // Enviar una respuesta con el usuario creado
+    // Crea un nuevo usuario
+    user = new User({ email, password });
+
+    // Hashea la contraseña
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+
+    await user.save();
+
+    // Respuesta exitosa
     res.status(201).json({
-      message: "User created successfully",
       user: {
-        _id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
+        email: user.email,
+        subscription: user.subscription,
       },
     });
   } catch (error) {
-    // Manejar errores
-    console.error("Error registering user:", error);
-    res.status(500).json({
-      message: "Error registering user",
-      error: error.message, // Puedes enviar el mensaje de error específico para depuración
-    });
+    res.status(400).json({ message: "Error registering user", error });
   }
 };
 
-module.exports = {
-  signup,
-  login,
+exports.login = async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    // Buscar al usuario por email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ message: "Email or password is wrong" });
+    }
+
+    // Verificar la contraseña
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Email or password is wrong" });
+    }
+
+    // Crear un token
+    const payload = { userId: user._id };
+    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+
+    // Guardar el token en el usuario actual
+    user.token = token;
+    await user.save();
+
+    res.status(200).json({
+      token,
+      user: {
+        email: user.email,
+        subscription: user.subscription,
+      },
+    });
+  } catch (error) {
+    res.status(400).json({ message: "Error logging in", error });
+  }
 };
 
-// module.exports = { signup, login };
+exports.logout = async (req, res) => {
+  const userId = req.user._id;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    // Eliminar el token del usuario
+    user.token = null;
+    await user.save();
+
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+exports.current = async (req, res) => {
+  const userId = req.user._id;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    res.status(200).json({
+      email: user.email,
+      subscription: user.subscription,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
